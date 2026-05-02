@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+  <title>勤怠管理 Ver 2.2 (GitHub)</title>
+  <style>
+    /* ダークモード設定 */
+    :root {
+      --bg-color: #0b0e14;
+      --card-bg: #151921;
+      --text-primary: #e2e8f0;
+      --text-secondary: #94a3b8;
+      --accent-blue: #3b82f6;
+      --accent-green: #10b981;
+      --accent-red: #f43f5e;
+      --border: rgba(255, 255, 255, 0.08);
+    }
+
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+      margin: 0; background: var(--bg-color); color: var(--text-primary);
+      overflow: hidden; touch-action: pan-y; 
+    }
+
+    .nav-tabs {
+      display: flex; background: #11141a; border-bottom: 1px solid var(--border);
+      position: fixed; top: 0; width: 100%; z-index: 100;
+    }
+    .tab {
+      flex: 1; text-align: center; padding: 15px 0;
+      color: var(--text-secondary); font-weight: bold; font-size: 0.9rem;
+      cursor: pointer; transition: 0.3s;
+    }
+    .tab.active {
+      color: var(--accent-blue); border-bottom: 3px solid var(--accent-blue);
+      background: rgba(59, 130, 246, 0.05);
+    }
+
+    .slider-container { width: 100vw; height: 100vh; overflow: hidden; margin-top: 50px; }
+    .slider-inner { display: flex; width: 200vw; height: calc(100% - 50px); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .page { 
+      width: 100vw; height: 100%; display: flex; flex-direction: column; 
+      align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; 
+    }
+    
+    .card { 
+      background: var(--card-bg); padding: 2.5rem 1.5rem; border-radius: 24px; 
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 380px; 
+      text-align: center; border: 1px solid var(--border); box-sizing: border-box;
+    }
+    
+    h2 { margin-top: 0; color: var(--text-primary); font-size: 1.4rem; margin-bottom: 10px; }
+    
+    .btn-group { display: flex; justify-content: center; gap: 15px; margin-top: 20px; }
+    .btn { 
+      flex: 1; padding: 16px; font-size: 1.1rem; font-weight: bold; 
+      cursor: pointer; border: none; border-radius: 14px; color: white; 
+      transition: 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .btn:active { transform: scale(0.96); opacity: 0.9; }
+    .btn-green { background: var(--accent-green); }
+    .btn-red { background: var(--accent-red); }
+    .btn-blue { background: var(--accent-blue); }
+    .btn:disabled { background: #334155; color: #64748b; cursor: not-allowed; box-shadow: none; }
+    
+    .display-time { font-size: 4rem; font-weight: 700; color: var(--accent-blue); margin: 15px 0; letter-spacing: -2px; }
+    .miraze-time { color: var(--accent-green); }
+    .info-box { background: rgba(255,255,255,0.03); padding: 10px; border-radius: 10px; min-height: 1.2rem; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 20px; }
+    
+    input[type="text"] { 
+      width: 100%; padding: 14px; background: #0f1218; border: 1px solid #2d3748; 
+      border-radius: 12px; color: white; font-size: 1rem; margin-bottom: 20px; box-sizing: border-box;
+    }
+    
+    .status-msg { height: 1.5rem; font-weight: 500; font-size: 0.9rem; margin-top: 20px; }
+    
+    .dots { display: flex; justify-content: center; gap: 8px; margin-top: 20px; }
+    .dot { width: 8px; height: 8px; background: #334155; border-radius: 50%; transition: 0.3s; }
+    .dot.active { background: var(--accent-blue); width: 20px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+<div class="nav-tabs">
+  <div class="tab active" id="tab0" onclick="movePage(0)">バイト記録</div>
+  <div class="tab" id="tab1" onclick="movePage(1)">ミライズ勤務</div>
+</div>
+
+<div class="slider-container" id="sliderContainer">
+  <div class="slider-inner" id="sliderInner">
+    
+    <div class="page">
+      <div class="card">
+        <h2>バイト時間記録</h2>
+        <div class="display-time" id="baitoDisplay">00:00</div>
+        <div class="info-box" id="baitoInfo"></div>
+        <div class="btn-group">
+          <button id="bIn" class="btn btn-blue" onclick="baitoIn()">出勤</button>
+          <button id="bOut" class="btn btn-red" onclick="baitoOut()">退勤</button>
+        </div>
+        <div id="msg1" class="status-msg"></div>
+        <div class="dots"><div class="dot active" id="d0_0"></div><div class="dot" id="d0_1"></div></div>
+      </div>
+    </div>
+
+    <div class="page">
+      <div class="card">
+        <h2>ミライズ勤務時間</h2>
+        <div class="display-time miraze-time" id="mirazeDisplay">00:00</div>
+        <div class="info-box" id="mirazeInfo"></div>
+        <input type="text" id="mirazeTask" placeholder="作業内容を入力（任意）">
+        <div class="btn-group">
+          <button id="mStart" class="btn btn-green" onclick="mirazeStartBtn()">開始</button>
+          <button id="mStop" class="btn btn-red" onclick="mirazeStopBtn()" disabled>終了</button>
+        </div>
+        <div id="msg2" class="status-msg"></div>
+        <div class="dots"><div class="dot" id="d1_0"></div><div class="dot active" id="d1_1"></div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ▽▽ ここにメモしたGASのウェブアプリURLを貼り付けてください ▽▽
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbwqfa0RyyGDc0E81Oluqvp-j0bGX7s30Xg0jz_VSdEl6tYXqf8kt54h1mEIxw68874Zeg/exec";
+  
+  let startX, currentIdx = 0;
+  const inner = document.getElementById('sliderInner');
+  const tabs = [document.getElementById('tab0'), document.getElementById('tab1')];
+
+  function movePage(idx) {
+    currentIdx = idx;
+    inner.style.transform = `translateX(-${idx * 100}vw)`;
+    tabs.forEach((t, i) => t.className = i === idx ? 'tab active' : 'tab');
+  }
+
+  window.addEventListener('touchstart', e => startX = e.touches[0].clientX);
+  window.addEventListener('touchend', e => {
+    let diff = e.changedTouches[0].clientX - startX;
+    if (diff > 60 && currentIdx > 0) movePage(0);
+    if (diff < -60 && currentIdx < 1) movePage(1);
+  });
+
+  // --- 共通APIリクエスト関数 ---
+  async function callGAS(action, params = {}) {
+    try {
+      const response = await fetch(GAS_URL, {
+        method: 'POST',
+        mode: 'no-cors', // CORS対応
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action, ...params })
+      });
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }
+
+  async function getGAS(action) {
+    try {
+      const response = await fetch(`${GAS_URL}?action=${action}`);
+      return await response.json();
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  }
+
+  // --- バイト記録ロジック ---
+  async function baitoIn() {
+    const msg = document.getElementById('msg1');
+    msg.style.color = "#3b82f6"; msg.innerText = "記録中...";
+    const now = new Date();
+    const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    
+    await callGAS("baitoIn");
+    document.getElementById('baitoDisplay').innerText = timeStr;
+    document.getElementById('baitoInfo').innerText = "出勤を記録しました";
+    msg.style.color = "#10b981"; msg.innerText = "✓ 出勤完了";
+  }
+
+  async function baitoOut() {
+    const msg = document.getElementById('msg1');
+    msg.style.color = "#3b82f6"; msg.innerText = "記録中...";
+    await callGAS("baitoOut");
+    
+    document.getElementById('baitoDisplay').innerText = "00:00";
+    document.getElementById('baitoInfo').innerText = "";
+    msg.style.color = "#10b981"; msg.innerText = "✓ 2行目にデータを記録しました";
+  }
+
+  // --- ミライズ記録ロジック ---
+  let mStartTime, mInterval;
+  
+  async function mirazeStartBtn() {
+    mStartTime = new Date().getTime();
+    await callGAS("mirazeStart");
+    startMirazeDisplay();
+  }
+
+  function startMirazeDisplay() {
+    document.getElementById('mStart').disabled = true;
+    document.getElementById('mStop').disabled = false;
+    const d = new Date(mStartTime);
+    document.getElementById('mirazeInfo').innerText = `開始時刻: ${d.getHours()}:${d.getMinutes().toString().padStart(2,'0')}`;
+    updateMirazeTimer();
+    mInterval = setInterval(updateMirazeTimer, 1000);
+  }
+
+  function updateMirazeTimer() {
+    const diff = new Date().getTime() - mStartTime;
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    document.getElementById('mirazeDisplay').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+  }
+
+  async function mirazeStopBtn() {
+    const diff = new Date().getTime() - mStartTime;
+    const mins = Math.floor(diff / 60000);
+    const task = document.getElementById('mirazeTask').value;
+    const msg = document.getElementById('msg2');
+    msg.style.color = "#3b82f6"; msg.innerText = "記録中...";
+
+    await callGAS("mirazeStop", { duration: mins, task: task });
+    
+    clearInterval(mInterval);
+    document.getElementById('mirazeDisplay').innerText = "00:00";
+    document.getElementById('mirazeInfo').innerText = "";
+    document.getElementById('mirazeTask').value = "";
+    document.getElementById('mStart').disabled = false;
+    document.getElementById('mStop').disabled = true;
+    msg.style.color = "#10b981"; msg.innerText = "✓ 記録を末尾に追加しました";
+  }
+
+  window.onload = async () => {
+    // 状況の復元
+    const baito = await getGAS("getBaitoStatus");
+    if (baito) {
+      document.getElementById('baitoDisplay').innerText = baito.time;
+      document.getElementById('baitoInfo').innerText = `出勤中: ${baito.date} ${baito.time}`;
+    }
+    const miraze = await getGAS("getMirazeStart");
+    if (miraze) {
+      mStartTime = miraze;
+      startMirazeDisplay();
+    }
+  };
+</script>
+</body>
+</html>
